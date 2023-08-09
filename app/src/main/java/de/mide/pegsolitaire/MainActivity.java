@@ -92,6 +92,10 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
      */
     private GridLayout _gridLayout = null;
 
+    /**
+     * 记录当前选中的格子
+     */
+    private SpacePosition _selected = null;
 
     /**
      * 用于处理点击棋盘上的棋子的事件。
@@ -186,7 +190,18 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
      * 如果用户选择"是"，则初始化棋盘，否则不做任何事情。
      */
     public void selectedNewGame() {
-        // TODO
+        //TODO || DONE
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        dialogBuilder.setTitle("询问");
+        dialogBuilder.setMessage("是否开始新游戏");
+        dialogBuilder.setPositiveButton("是", (dialogInterface, i) -> {
+            initializeBoard();
+        });
+        dialogBuilder.setNegativeButton("否", (dialogInterface, i) -> {});
+
+        AlertDialog dialog = dialogBuilder.create();
+        dialog.show();
+
     }
 
 
@@ -260,7 +275,13 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
         SpacePosition pos = new SpacePosition(indexColumn, indexRow);
         button.setTag(pos);
 
-        // TODO
+        // TODO || DONE
+        if (isPeg) button.setText(TOKEN_MARK);
+        else button.setText(" ");
+
+        _gridLayout.addView(button);
+
+
     }
 
 
@@ -304,11 +325,40 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
         switch (placeStatus) {
 
             case PEG:
-                // TODO
+                // TODO || DONE
+                if (clickedButton.getCurrentTextColor()==TEXT_COLOR_RED){//如果之前被选中？，那么...
+                    clickedButton.setTextColor(TEXT_COLOR_BROWN);
+                    _selected = null;
+                }
+                else {//如果之前没有被选中，那么...
+
+                    if (_selected!=null){
+                    Button preselected = getButtonFromPosition(_selected);
+                    preselected.setTextColor(TEXT_COLOR_BROWN);
+                    }
+                    clickedButton.setTextColor(TEXT_COLOR_RED);
+                    _selected = (SpacePosition) clickedButton.getTag();
+
+                }
+
                 break;
 
             case SPACE:
-                // TODO
+                // TODO || DONE
+                if (_selected==null) {
+                    Log.e(TAG4LOGGING, "未选中棋子，无法移动");
+                    break;
+                }
+
+                SpacePosition start = _selected;
+                SpacePosition end = (SpacePosition) clickedButton.getTag();
+
+                SpacePosition skipped = getSkippedPosition(start,end);
+                if (skipped==null) {
+                    Log.e(TAG4LOGGING,"不合法的跳棋请求" + "start: " + start + "end: " + end);
+                    break;
+                }
+                jumpToPosition(getButtonFromPosition(start),getButtonFromPosition(end),getButtonFromPosition(skipped));
                 break;
 
             default:
@@ -328,16 +378,62 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
      */
     private void jumpToPosition(Button startButton, Button targetButton, Button skippedButton) {
 
-        // TODO
+        // TODO || DONE
 
+        startButton.setTextColor(TEXT_COLOR_BROWN);
+        startButton.setText(" ");
+
+        targetButton.setTextColor(TEXT_COLOR_RED);
+        targetButton.setText(TOKEN_MARK);
+        _selected = (SpacePosition) targetButton.getTag();
+
+        skippedButton.setText(" ");
+
+        ChangeStatus(startButton,SPACE);
+        ChangeStatus(targetButton,PEG);
+        ChangeStatus(skippedButton,SPACE);
+
+
+        _numberOfSteps++;
         _numberOfPegs--;
         updateDisplayStepsNumber();
         if (_numberOfPegs == 1) {
             showVictoryDialog();
-        } else if (!has_movable_places()) {
+        }
+        else if (!has_movable_places()) {
             showFailureDialog();
         }
     }
+
+    /** 改变指定位置棋子状态
+     *
+     */
+
+    private void ChangeStatus(Button bu,PlaceStatusEnum sta){
+        SpacePosition pos = (SpacePosition) bu.getTag();
+
+        int Column = pos.getIndexColumn();
+        int Row = pos.getIndexRow();
+        _placeArray[Column][Row] = sta;
+    }
+
+    /** 获得指定位置棋子状态
+     *
+     */
+
+    private PlaceStatusEnum FindStatus(Button bu){
+        SpacePosition pos = (SpacePosition) bu.getTag();
+        int Column = pos.getIndexColumn();
+        int Row = pos.getIndexRow();
+        return _placeArray[Column][Row];
+    }
+    private PlaceStatusEnum FindStatusByPos(SpacePosition pos){
+        int Column = pos.getIndexColumn();
+        int Row = pos.getIndexRow();
+        return _placeArray[Column][Row];
+    }
+
+
 
     /**
      * 返回位置对应的按钮。
@@ -397,7 +493,27 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
      * 表示被跳过的位置；否则返回 {@code null}
      */
     private SpacePosition getSkippedPosition(SpacePosition startPos, SpacePosition targetPos) {
-        // TODO
+        // TODO || DONE
+
+
+        int startCol = startPos.getIndexColumn();
+        int startRow = startPos.getIndexRow();
+        int targetCol = targetPos.getIndexColumn();
+        int targetRow = targetPos.getIndexRow();
+
+
+        if (FindStatusByPos(startPos) != PEG || FindStatusByPos(targetPos) != SPACE) return null;
+        if (startRow==targetRow && Math.abs(startCol-targetCol)==2){
+            SpacePosition skipped = new SpacePosition((startCol+targetCol)/2,startRow);
+            Button skippedButton = getButtonFromPosition(skipped);
+            if (FindStatus(skippedButton)==PEG) return skipped;
+        }
+        else if (startCol==targetCol && Math.abs(startRow-targetRow)==2){
+            SpacePosition skipped = new SpacePosition(startCol,(startRow+targetRow)/2);
+            Button skippedButton = getButtonFromPosition(skipped);
+            if (FindStatus(skippedButton)==PEG) return skipped;
+        }
+
         return null;
     }
 
@@ -412,6 +528,18 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
             for(int j = 0; j < _sizeRow; j++){
                 if(_placeArray[i][j] == PEG){
                     // TODO
+                    SpacePosition cur = new SpacePosition(i,j);
+
+                    SpacePosition rowp2 = new SpacePosition(i,j+2);
+                    SpacePosition rowm2 = new SpacePosition(i,j-2);
+                    SpacePosition colp2 = new SpacePosition(i+2,j);
+                    SpacePosition colm2 = new SpacePosition(i-2,j);
+
+                    if (j+2<_sizeRow&&getSkippedPosition(cur,rowp2)!= null)  return true;
+                    else if (j-2>=0 && getSkippedPosition(cur,rowm2)!=null) return true;
+                    else if (i+2<_sizeColumn && getSkippedPosition(cur,colp2)!=null) return true;
+                    else if (i-2>=0 && getSkippedPosition(cur,colm2)!=null) return true;
+
                 }
             }
         }
